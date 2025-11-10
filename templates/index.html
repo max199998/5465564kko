@@ -1,0 +1,590 @@
+{% extends "base.html" %}
+
+{% block title %}Sistema de Extratos - Ipixuna do Pará{% endblock %}
+
+{% block content %}
+<div class="upload-zone">
+    <h2 class="section-title">Upload de Documentos Bancários</h2>
+    
+    <div class="upload-instructions">
+        <p><strong>Arraste e solte</strong> seus arquivos PDF aqui ou clique para selecionar.</p>
+        <p>Detecção AUTOMÁTICA do tipo de documento e conta bancária</p>
+        <p>Upload de MÚLTIPLOS arquivos simultâneos</p>
+    </div>
+    
+    <div class="dropzone" id="dropzone">
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin: 0 auto 20px; display: block; color: #667eea;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+        <h3 style="color: #4a5568; margin-bottom: 10px;">Arraste arquivos PDF aqui</h3>
+        <p style="color: #718096; margin-bottom: 20px;">ou</p>
+        <label for="fileInput" class="btn btn-primary" style="cursor: pointer;">
+            Selecionar Arquivos
+        </label>
+        <input type="file" id="fileInput" multiple accept=".pdf" style="display: none;">
+    </div>
+    
+    <div id="uploadProgress" style="display: none; margin-top: 20px;">
+        <h3 style="color: #2d3748; margin-bottom: 15px;">Processando arquivos...</h3>
+        <div id="progressList"></div>
+    </div>
+</div>
+
+<!-- Seção de filtros adicionada -->
+<div class="filters-section">
+    <h3>Filtros</h3>
+    <form method="GET" action="{{ url_for('index') }}" class="filters-grid">
+        <div class="form-group">
+            <label>Fundo/Secretaria</label>
+            <select name="fundo" class="form-control">
+                <option value="TODAS" {% if filtro_fundo == 'TODAS' %}selected{% endif %}>Todas (Consolidado)</option>
+                {% for fundo in fundos_disponiveis %}
+                <option value="{{ fundo }}" {% if filtro_fundo == fundo %}selected{% endif %}>{{ fundo }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Mês</label>
+            <select name="mes" class="form-control">
+                <option value="">Todos</option>
+                <option value="01" {% if filtro_mes == '01' %}selected{% endif %}>Janeiro</option>
+                <option value="02" {% if filtro_mes == '02' %}selected{% endif %}>Fevereiro</option>
+                <option value="03" {% if filtro_mes == '03' %}selected{% endif %}>Março</option>
+                <option value="04" {% if filtro_mes == '04' %}selected{% endif %}>Abril</option>
+                <option value="05" {% if filtro_mes == '05' %}selected{% endif %}>Maio</option>
+                <option value="06" {% if filtro_mes == '06' %}selected{% endif %}>Junho</option>
+                <option value="07" {% if filtro_mes == '07' %}selected{% endif %}>Julho</option>
+                <option value="08" {% if filtro_mes == '08' %}selected{% endif %}>Agosto</option>
+                <option value="09" {% if filtro_mes == '09' %}selected{% endif %}>Setembro</option>
+                <option value="10" {% if filtro_mes == '10' %}selected{% endif %}>Outubro</option>
+                <option value="11" {% if filtro_mes == '11' %}selected{% endif %}>Novembro</option>
+                <option value="12" {% if filtro_mes == '12' %}selected{% endif %}>Dezembro</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Ano</label>
+            <select name="ano" class="form-control">
+                <option value="">Todos</option>
+                {% for periodo in periodos_disponiveis %}
+                    {% if periodo['ano_referencia'] %}
+                    <option value="{{ periodo['ano_referencia'] }}" {% if filtro_ano == periodo['ano_referencia']|string %}selected{% endif %}>
+                        {{ periodo['ano_referencia'] }}
+                    </option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group" style="display: flex; align-items: flex-end;">
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Filtrar</button>
+        </div>
+    </form>
+</div>
+
+<h2 class="section-title">Contas Bancárias por Fundo/Secretaria</h2>
+
+{% if contas_organizadas %}
+    {% for fundo, bancos in contas_organizadas.items() %}
+    <div class="fundo-container">
+        <div class="fundo-header">
+            <h3>{{ fundo }}</h3>
+            <span class="fundo-total">
+                {% set total_contas = bancos.values() | map('length') | sum %}
+                {{ total_contas }} conta(s)
+            </span>
+        </div>
+        
+        {% for banco, contas in bancos.items() %}
+        <div class="banco-section">
+            <div class="banco-header">
+                <strong>{{ banco }}</strong>
+                <span style="color: #718096; font-size: 14px;">{{ contas | length }} conta(s)</span>
+            </div>
+            
+            <!-- Tabela reformulada com formato solicitado -->
+            <table class="contas-table">
+                <thead>
+                    <tr>
+                        <th>Conta</th>
+                        <th>Agência</th>
+                        <th>Conciliação</th>
+                        <th>Corrente</th>
+                        <th>Poupança</th>
+                        <th>Aplicação</th>
+                        <th>Período</th>
+                        <th>Mês/Ano Ref</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for conta in contas %}
+                    <tr>
+                        <td><strong>{{ conta['numero_conta'] }}</strong></td>
+                        <td>{{ conta['agencia'] }}</td>
+                        
+                        <!-- Visualização inline com ícone de olho -->
+                        <td>
+                            {% if conta['docs_conciliacao'] %}
+                                {% set docs = conta['docs_conciliacao'].split(',') %}
+                                {% for doc in docs %}
+                                    {% set parts = doc.split(':') %}
+                                    <a href="#" onclick="visualizarPDF({{ parts[0] }}); return false;" 
+                                       class="doc-preview-link" title="Visualizar {{ parts[2] }}">
+                                        👁️ {{ parts[2] }}
+                                    </a>
+                                {% endfor %}
+                            {% else %}
+                                <span class="no-docs">-</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td>
+                            {% if conta['docs_corrente'] %}
+                                {% set docs = conta['docs_corrente'].split(',') %}
+                                {% for doc in docs %}
+                                    {% set parts = doc.split(':') %}
+                                    <a href="#" onclick="visualizarPDF({{ parts[0] }}); return false;" 
+                                       class="doc-preview-link" title="Visualizar {{ parts[2] }}">
+                                        👁️ {{ parts[2] }}
+                                    </a>
+                                {% endfor %}
+                            {% else %}
+                                <span class="no-docs">-</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td>
+                            {% if conta['docs_poupanca'] %}
+                                {% set docs = conta['docs_poupanca'].split(',') %}
+                                {% for doc in docs %}
+                                    {% set parts = doc.split(':') %}
+                                    <a href="#" onclick="visualizarPDF({{ parts[0] }}); return false;" 
+                                       class="doc-preview-link" title="Visualizar {{ parts[2] }}">
+                                        👁️ {{ parts[2] }}
+                                    </a>
+                                {% endfor %}
+                            {% else %}
+                                <span class="no-docs">-</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td>
+                            {% if conta['docs_aplicacao'] %}
+                                {% set docs = conta['docs_aplicacao'].split(',') %}
+                                {% for doc in docs %}
+                                    {% set parts = doc.split(':') %}
+                                    <a href="#" onclick="visualizarPDF({{ parts[0] }}); return false;" 
+                                       class="doc-preview-link" title="Visualizar {{ parts[2] }}">
+                                        👁️ {{ parts[2] }}
+                                    </a>
+                                {% endfor %}
+                            {% else %}
+                                <span class="no-docs">-</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td>
+                            {% if conta['periodo_inicio'] and conta['periodo_fim'] %}
+                                {{ conta['periodo_inicio'] }} a {{ conta['periodo_fim'] }}
+                            {% else %}
+                                <span class="no-docs">-</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td>
+                            {% if conta['mes_referencia'] and conta['ano_referencia'] %}
+                                {{ conta['mes_referencia'] }}/{{ conta['ano_referencia'] }}
+                            {% else %}
+                                <span class="no-docs">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+{% else %}
+<div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+    <h3>Nenhuma conta encontrada com os filtros selecionados</h3>
+</div>
+{% endif %}
+
+<!-- Modal para visualização de PDF inline -->
+<div id="pdfModal" class="modal">
+    <div class="modal-content" style="max-width: 90%; width: 1200px;">
+        <span class="close" onclick="fecharModal()">&times;</span>
+        <h2 style="margin-bottom: 20px;">Visualização do Documento</h2>
+        <iframe id="pdfViewer" style="width: 100%; height: 700px; border: none;" src=""></iframe>
+    </div>
+</div>
+
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const uploadProgress = document.getElementById('uploadProgress');
+const progressList = document.getElementById('progressList');
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropzone.addEventListener(eventName, preventDefaults, false);
+    document.body.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach(eventName => {
+    dropzone.addEventListener(eventName, highlight, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropzone.addEventListener(eventName, unhighlight, false);
+});
+
+function highlight(e) {
+    dropzone.style.borderColor = '#667eea';
+    dropzone.style.background = '#edf2f7';
+}
+
+function unhighlight(e) {
+    dropzone.style.borderColor = '#cbd5e0';
+    dropzone.style.background = '#f7fafc';
+}
+
+dropzone.addEventListener('drop', handleDrop, false);
+
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    handleFiles(files);
+}
+
+fileInput.addEventListener('change', function(e) {
+    handleFiles(this.files);
+});
+
+function handleFiles(files) {
+    if (files.length === 0) return;
+    
+    const formData = new FormData();
+    
+    for (let i = 0; i < files.length; i++) {
+        formData.append('documentos', files[i]);
+    }
+    
+    uploadProgress.style.display = 'block';
+    progressList.innerHTML = `<div class="progress-info">Enviando ${files.length} arquivo(s)...</div>`;
+    
+    fetch('/upload-multiplo', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        progressList.innerHTML = '';
+        
+        let html = '<div class="results-container">';
+        
+        if (data.sucesso > 0) {
+            html += `<div class="alert alert-success">${data.sucesso} arquivo(s) processado(s)</div>`;
+        }
+        
+        if (data.duplicatas > 0) {
+            html += `<div class="alert alert-warning">${data.duplicatas} duplicata(s) ignorada(s)</div>`;
+            data.mensagens_duplicata.forEach(msg => {
+                html += `<div class="result-item warning">${msg}</div>`;
+            });
+        }
+        
+        if (data.erros > 0) {
+            html += `<div class="alert alert-error">${data.erros} erro(s)</div>`;
+            data.mensagens_erro.forEach(erro => {
+                html += `<div class="result-item error">${erro}</div>`;
+            });
+        }
+        
+        html += `<button onclick="location.reload()" class="btn btn-primary" style="margin-top: 15px;">Atualizar</button>`;
+        html += '</div>';
+        
+        progressList.innerHTML = html;
+    })
+    .catch(error => {
+        progressList.innerHTML = `<div class="alert alert-error">Erro: ${error.message}</div>`;
+    });
+}
+
+function visualizarPDF(idDocumento) {
+    const modal = document.getElementById('pdfModal');
+    const iframe = document.getElementById('pdfViewer');
+    iframe.src = `/visualizar-pdf/${idDocumento}`;
+    modal.style.display = 'block';
+}
+
+function fecharModal() {
+    const modal = document.getElementById('pdfModal');
+    const iframe = document.getElementById('pdfViewer');
+    modal.style.display = 'none';
+    iframe.src = '';
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById('pdfModal');
+    if (event.target == modal) {
+        fecharModal();
+    }
+}
+</script>
+
+<style>
+@keyframes progress {
+    0% { width: 0%; }
+    50% { width: 100%; }
+    100% { width: 0%; }
+}
+
+.fundo-container {
+    margin-bottom: 40px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+.fundo-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.fundo-header h3 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.fundo-total {
+    background: rgba(255,255,255,0.2);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.banco-section {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 20px 30px;
+}
+
+.banco-section:last-child {
+    border-bottom: none;
+}
+
+.banco-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.banco-header strong {
+    font-size: 18px;
+    color: #2d3748;
+}
+
+.contas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 15px;
+}
+
+.conta-card {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 15px;
+    transition: all 0.2s;
+}
+
+.conta-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    transform: translateY(-2px);
+}
+
+.conta-info {
+    margin-bottom: 12px;
+}
+
+.conta-numero {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 4px;
+}
+
+.conta-agencia {
+    font-size: 13px;
+    color: #718096;
+}
+
+.conta-documentos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+    min-height: 28px;
+}
+
+.conta-actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s;
+    flex: 1;
+    text-align: center;
+}
+
+.btn-view {
+    background: #667eea;
+    color: white;
+}
+
+.btn-view:hover {
+    background: #5568d3;
+}
+
+.btn-edit {
+    background: #edf2f7;
+    color: #4a5568;
+}
+
+.btn-edit:hover {
+    background: #e2e8f0;
+}
+
+.badge-gray {
+    background: #e2e8f0;
+    color: #718096;
+}
+
+.contas-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+.contas-table thead {
+    background: #f7fafc;
+}
+
+.contas-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #4a5568;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.contas-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: top;
+}
+
+.contas-table tbody tr:hover {
+    background: #f7fafc;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.badge-blue { background: #bee3f8; color: #2c5282; }
+.badge-green { background: #c6f6d5; color: #22543d; }
+.badge-purple { background: #e9d8fd; color: #44337a; }
+.badge-orange { background: #fed7d7; color: #742a2a; }
+.badge-gray { background: #e2e8f0; color: #718096; }
+
+.alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.alert-success { background: #c6f6d5; color: #22543d; }
+.alert-warning { background: #feebc8; color: #7c2d12; }
+.alert-error { background: #fed7d7; color: #742a2a; }
+
+.result-item {
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.result-item.warning { background: #fffaf0; border-left: 4px solid #f6ad55; }
+.result-item.error { background: #fff5f5; border-left: 4px solid #fc8181; }
+
+.doc-preview-link {
+    display: inline-block;
+    padding: 4px 8px;
+    margin: 2px;
+    background: #edf2f7;
+    color: #4a5568;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.doc-preview-link:hover {
+    background: #667eea;
+    color: white;
+}
+
+.no-docs {
+    color: #a0aec0;
+    font-style: italic;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #667eea;
+}
+</style>
+{% endblock %}

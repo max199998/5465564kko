@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Contas - Sistema{% endblock %}
+
+{% block content %}
+<h2 class="section-title">Adicionar Nova Conta</h2>
+
+<form method="POST" action="{{ url_for('adicionar_conta') }}" class="form-card">
+    <div class="grid-4">
+        <div class="form-group">
+            <label>Banco</label>
+            <select name="id_banco" required>
+                <option value="">Selecione o banco...</option>
+                {% for banco in bancos %}
+                <option value="{{ banco['id_banco'] }}">{{ banco['codigo_banco'] }} - {{ banco['nome_banco'] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Agência</label>
+            <input type="text" name="agencia" placeholder="Ex: 4876-3" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Número da Conta</label>
+            <input type="text" name="numero_conta" placeholder="Ex: 5.076-8" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Descrição</label>
+            <input type="text" name="descricao" placeholder="Ex: Folha de Pagamento" required>
+        </div>
+    </div>
+    
+    <button type="submit" class="btn btn-success" style="margin-top: 10px;">Adicionar Conta</button>
+</form>
+
+<h2 class="section-title">Contas Cadastradas ({{ contas|length }})</h2>
+
+{% if contas %}
+<!-- Tabela com uma conta por linha, mais organizada -->
+<div class="table-responsive">
+    <table class="contas-table">
+        <thead>
+            <tr>
+                <th style="width: 50px;">ID</th>
+                <th style="width: 350px;">Banco</th>
+                <th style="width: 120px;">Agência</th>
+                <th style="width: 130px;">Conta</th>
+                <th>Descrição</th>
+                <th style="width: 70px;">Docs</th>
+                <th style="width: 90px;">Status</th>
+                <th style="width: 200px;">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for conta in contas %}
+            <tr {% if conta['ativa'] == 0 %}style="opacity: 0.5;"{% endif %}>
+                <td><strong>#{{ conta['id_conta'] }}</strong></td>
+                <td>
+                    <!-- Banco em uma linha clara -->
+                    <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <div style="font-weight: 700; color: #2d3748;">{{ conta['codigo_banco'] }} - {{ conta['nome_banco'][:30] }}</div>
+                    </div>
+                </td>
+                <td><strong>{{ conta['agencia'] }}</strong></td>
+                <td><strong>{{ conta['numero_conta'] }}</strong></td>
+                <td>{{ conta['descricao'][:50] }}</td>
+                <td><span class="badge badge-info">{{ conta['total_documentos'] }}</span></td>
+                <td>
+                    {% if conta['ativa'] == 1 %}
+                        <span class="status-ativa">● Ativa</span>
+                    {% else %}
+                        <span class="status-inativa">● Inativa</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <button onclick="editarConta({{ conta['id_conta'] }}, '{{ conta['numero_conta'] }}', '{{ conta['descricao'] }}', {{ conta['id_banco'] }}, '{{ conta['agencia'] }}')" class="btn-action btn-edit">Editar</button>
+                        
+                        {% if conta['ativa'] == 1 %}
+                            <a href="{{ url_for('desativar_conta', id=conta['id_conta']) }}" class="btn-action btn-pause" onclick="return confirm('Desativar esta conta?')">Desativar</a>
+                        {% else %}
+                            <a href="{{ url_for('ativar_conta', id=conta['id_conta']) }}" class="btn-action btn-play">Ativar</a>
+                        {% endif %}
+                        
+                        {% if conta['total_documentos'] == 0 %}
+                            <a href="{{ url_for('deletar_conta', id=conta['id_conta']) }}" class="btn-action btn-delete" onclick="return confirm('Deletar esta conta permanentemente?')">Deletar</a>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <h3>Nenhuma conta cadastrada</h3>
+    <p>Adicione sua primeira conta usando o formulário acima</p>
+</div>
+{% endif %}
+
+<!-- Modal de Edição -->
+<div id="modalEditar" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="fecharModal()">&times;</span>
+        <h2>Editar Conta</h2>
+        <form method="POST" id="formEditar" style="margin-top: 20px;">
+            <div class="form-group">
+                <label>Banco</label>
+                <select id="edit_id_banco" name="id_banco" required>
+                    {% for banco in bancos %}
+                    <option value="{{ banco['id_banco'] }}">{{ banco['codigo_banco'] }} - {{ banco['nome_banco'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Agência</label>
+                <input type="text" id="edit_agencia" name="agencia" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Número da Conta</label>
+                <input type="text" id="edit_numero_conta" name="numero_conta" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Descrição</label>
+                <input type="text" id="edit_descricao" name="descricao" required>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="submit" class="btn btn-success">Salvar Alterações</button>
+                <button type="button" onclick="fecharModal()" class="btn btn-secondary">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function editarConta(id, numero, descricao, idBanco, agencia) {
+    document.getElementById('formEditar').action = "{{ url_for('editar_conta', id=0) }}".replace('0', id);
+    document.getElementById('edit_numero_conta').value = numero;
+    document.getElementById('edit_descricao').value = descricao;
+    document.getElementById('edit_id_banco').value = idBanco;
+    document.getElementById('edit_agencia').value = agencia;
+    document.getElementById('modalEditar').style.display = 'block';
+}
+
+function fecharModal() {
+    document.getElementById('modalEditar').style.display = 'none';
+}
+
+window.onclick = function(event) {
+    if (event.target == document.getElementById('modalEditar')) {
+        fecharModal();
+    }
+}
+</script>
+{% endblock %}

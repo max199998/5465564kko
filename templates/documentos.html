@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Documentos - Sistema{% endblock %}
+
+{% block content %}
+<div class="upload-zone">
+    <h2 class="section-title">Upload Automático de Documentos</h2>
+    <p class="upload-instructions">
+        Arraste e solte o PDF aqui ou clique para selecionar. 
+        <strong>O sistema detecta automaticamente:</strong> tipo de documento, conta bancária, datas e valores.
+    </p>
+    
+    <form method="POST" action="{{ url_for('upload_documento') }}" enctype="multipart/form-data" id="uploadForm">
+        <div class="dropzone" id="dropzone">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 80px; height: 80px; margin-bottom: 15px;">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <p style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">Arraste o PDF aqui</p>
+            <p style="color: #666; margin-bottom: 15px;">ou</p>
+            <label for="documento" class="btn btn-primary" style="cursor: pointer;">
+                Escolher Arquivo
+            </label>
+            <input type="file" id="documento" name="documento" accept=".pdf" required style="display: none;">
+            <p id="fileName" style="margin-top: 15px; color: #28a745; font-weight: 600;"></p>
+        </div>
+        <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 15px; font-size: 18px;">
+            Fazer Upload Automático
+        </button>
+    </form>
+</div>
+
+<!-- Filtros com layout melhorado -->
+<div class="filters-section">
+    <h3>Filtrar Documentos</h3>
+    <form method="GET" action="{{ url_for('documentos') }}">
+        <div class="filters-grid">
+            <div class="form-group">
+                <label>Conta</label>
+                <select name="filtro_conta">
+                    <option value="">Todas as contas</option>
+                    {% for conta in contas %}
+                    <option value="{{ conta['id_conta'] }}" {% if filtro_conta == conta['id_conta']|string %}selected{% endif %}>
+                        {{ conta['numero_conta'] }} - {{ conta['descricao'][:40] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Tipo de Documento</label>
+                <select name="filtro_tipo">
+                    <option value="">Todos os tipos</option>
+                    <option value="Conta Corrente" {% if filtro_tipo == 'Conta Corrente' %}selected{% endif %}>Conta Corrente</option>
+                    <option value="Conta Poupança" {% if filtro_tipo == 'Conta Poupança' %}selected{% endif %}>Conta Poupança</option>
+                    <option value="Conta de Aplicação" {% if filtro_tipo == 'Conta de Aplicação' %}selected{% endif %}>Conta de Aplicação</option>
+                    <option value="Conciliação Bancária" {% if filtro_tipo == 'Conciliação Bancária' %}selected{% endif %}>Conciliação Bancária</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Ano</label>
+                <select name="filtro_ano">
+                    <option value="">Todos os anos</option>
+                    {% for ano in anos %}
+                    <option value="{{ ano }}" {% if filtro_ano == ano|string %}selected{% endif %}>{{ ano }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Mês</label>
+                <select name="filtro_mes">
+                    <option value="">Todos os meses</option>
+                    {% for mes in meses %}
+                    <option value="{{ mes }}" {% if filtro_mes == mes %}selected{% endif %}>{{ mes }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button type="submit" class="btn btn-info">Aplicar Filtros</button>
+            <a href="{{ url_for('documentos') }}" class="btn btn-secondary">Limpar Filtros</a>
+        </div>
+    </form>
+</div>
+
+<h2 class="section-title">Documentos Cadastrados ({{ documentos|length }})</h2>
+
+{% if documentos %}
+<!-- Tabela mais limpa e organizada -->
+<div class="table-responsive">
+    <table class="documents-table">
+        <thead>
+            <tr>
+                <th style="width: 50px;">ID</th>
+                <th style="width: 300px;">Conta</th>
+                <th style="width: 150px;">Tipo</th>
+                <th style="width: 100px;">Período</th>
+                <th style="width: 100px;">Ref.</th>
+                <th style="width: 120px;">Valor</th>
+                <th style="width: 150px;">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for doc in documentos %}
+            <tr>
+                <td><strong>#{{ doc['id_documento'] }}</strong></td>
+                <td>
+                    <!-- Uma conta por linha com informações organizadas -->
+                    <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <div style="font-weight: 700; color: #2d3748;">{{ doc['numero_conta'] or 'N/A' }}</div>
+                        <div style="font-size: 12px; color: #718096;">{{ doc['conta_descricao'][:40] if doc['conta_descricao'] else 'Sem descrição' }}</div>
+                        <div style="font-size: 11px; color: #a0aec0;">Ag: {{ doc['agencia'] or 'N/A' }} | {{ doc['nome_banco'][:25] if doc['nome_banco'] else 'Banco não identificado' }}</div>
+                    </div>
+                </td>
+                <td>
+                    {% if doc['tipo_documento'] == 'Conta Corrente' %}
+                        <span class="badge badge-blue">Corrente</span>
+                    {% elif doc['tipo_documento'] == 'Conta Poupança' %}
+                        <span class="badge badge-green">Poupança</span>
+                    {% elif doc['tipo_documento'] == 'Conta de Aplicação' %}
+                        <span class="badge badge-purple">Aplicação</span>
+                    {% else %}
+                        <span class="badge badge-orange">Conciliação</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="font-size: 12px;">
+                        <div>{{ doc['data_inicio'][:5] if doc['data_inicio'] else '-' }}</div>
+                        <div style="color: #a0aec0;">até</div>
+                        <div>{{ doc['data_fim'][:5] if doc['data_fim'] else '-' }}</div>
+                    </div>
+                </td>
+                <td><strong>{{ '%02d'|format(doc['mes_referencia']|int) if doc['mes_referencia'] else '-' }}/{{ doc['ano_referencia'] if doc['ano_referencia'] else '-' }}</strong></td>
+                <td class="valor-cell">R$ {{ "%.2f"|format(doc['valor_total'] or 0) }}</td>
+                <td>
+                    <div class="action-buttons">
+                        <a href="{{ url_for('uploaded_file', filename=doc['arquivo_pdf']) }}" target="_blank" class="btn-action btn-view">Ver PDF</a>
+                        <a href="{{ url_for('deletar_documento', id=doc['id_documento']) }}" class="btn-action btn-delete" onclick="return confirm('Tem certeza que deseja deletar este documento?')">Deletar</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+    <h3>Nenhum documento encontrado</h3>
+    <p>Faça o upload do seu primeiro documento bancário usando o formulário acima</p>
+</div>
+{% endif %}
+
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('documento');
+const fileName = document.getElementById('fileName');
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropzone.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach(eventName => {
+    dropzone.addEventListener(eventName, () => {
+        dropzone.style.borderColor = '#28a745';
+        dropzone.style.background = '#f0fff4';
+    }, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropzone.addEventListener(eventName, () => {
+        dropzone.style.borderColor = '#cbd5e0';
+        dropzone.style.background = '#f7fafc';
+    }, false);
+});
+
+dropzone.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files.length > 0 && files[0].type === 'application/pdf') {
+        fileInput.files = files;
+        fileName.textContent = '✓ ' + files[0].name;
+    } else {
+        alert('Por favor, selecione apenas arquivos PDF');
+    }
+}, false);
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        fileName.textContent = '✓ ' + e.target.files[0].name;
+    }
+});
+
+// Click na dropzone para abrir seletor de arquivo
+dropzone.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'LABEL' && e.target.tagName !== 'INPUT') {
+        fileInput.click();
+    }
+});
+</script>
+{% endblock %}

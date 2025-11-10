@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Configurar Conta {{ conta['numero_conta'] }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 30px;">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">← Voltar para Contas</a>
+</div>
+
+<div class="form-card">
+    <h2 class="section-title">⚙️ Configurações da Conta</h2>
+    
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 10px; margin-bottom: 25px; color: white;">
+        <h3 style="margin-bottom: 15px; font-size: 24px;">{{ conta['fundo'] }}</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+            <div>
+                <small style="opacity: 0.8; display: block;">Banco</small>
+                <strong style="font-size: 18px;">{{ conta['banco'] }}</strong>
+            </div>
+            <div>
+                <small style="opacity: 0.8; display: block;">Agência</small>
+                <strong style="font-size: 18px;">{{ conta['agencia'] }}</strong>
+            </div>
+            <div>
+                <small style="opacity: 0.8; display: block;">Conta</small>
+                <strong style="font-size: 18px;">{{ conta['numero_conta'] }}</strong>
+            </div>
+        </div>
+    </div>
+    
+    <form method="POST">
+        <div style="background: white; padding: 25px; border-radius: 10px; border: 2px solid #e2e8f0;">
+            <h3 style="color: #2d3748; margin-bottom: 20px;">Tipos de Documentos</h3>
+            
+            <p style="color: #718096; margin-bottom: 20px; line-height: 1.6;">
+                Marque os tipos de documentos que esta conta possui. Isso ajuda o sistema a organizar melhor os arquivos.
+            </p>
+            
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div style="background: #f7fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #48bb78;">
+                    <h4 style="color: #2d3748; margin-bottom: 10px;">💰 Conta Corrente</h4>
+                    <p style="color: #718096; font-size: 14px; margin-bottom: 10px;">Extrato padrão da conta corrente (sempre presente)</p>
+                    <div style="background: #c6f6d5; color: #22543d; padding: 10px; border-radius: 6px; display: inline-block; font-weight: 600;">
+                        ✓ Habilitado por padrão
+                    </div>
+                </div>
+                
+                <div style="background: #f7fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #9f7aea;">
+                    <label style="display: flex; align-items: start; cursor: pointer;">
+                        <input type="checkbox" name="tem_poupanca" value="1" 
+                               {% if conta['tem_poupanca'] == 1 %}checked{% endif %}
+                               style="width: 24px; height: 24px; margin-right: 15px; cursor: pointer; margin-top: 2px;">
+                        <div>
+                            <h4 style="color: #2d3748; margin-bottom: 5px; font-size: 18px;">🐷 Conta Poupança</h4>
+                            <p style="color: #718096; font-size: 14px;">Esta conta possui extrato de poupança</p>
+                        </div>
+                    </label>
+                </div>
+                
+                <div style="background: #f7fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #ed8936;">
+                    <label style="display: flex; align-items: start; cursor: pointer;">
+                        <input type="checkbox" name="tem_aplicacao" value="1" 
+                               {% if conta['tem_aplicacao'] == 1 %}checked{% endif %}
+                               style="width: 24px; height: 24px; margin-right: 15px; cursor: pointer; margin-top: 2px;">
+                        <div>
+                            <h4 style="color: #2d3748; margin-bottom: 5px; font-size: 18px;">📈 Conta de Aplicação / Investimento</h4>
+                            <p style="color: #718096; font-size: 14px;">Esta conta possui aplicações financeiras ou investimentos</p>
+                        </div>
+                    </label>
+                </div>
+                
+                <div style="background: #f7fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #4299e1;">
+                    <h4 style="color: #2d3748; margin-bottom: 10px; font-size: 18px;">📊 Conciliação Bancária</h4>
+                    <p style="color: #718096; font-size: 14px; margin-bottom: 10px;">Detectado automaticamente quando presente no PDF</p>
+                    <div style="background: #bee3f8; color: #2c5282; padding: 10px; border-radius: 6px; display: inline-block; font-weight: 600;">
+                        ℹ️ Identificação automática
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 25px; display: flex; gap: 15px;">
+            <button type="submit" class="btn btn-success">
+                💾 Salvar Configurações
+            </button>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+
+<div style="background: #fffaf0; border: 2px solid #fbd38d; padding: 20px; border-radius: 10px; margin-top: 30px;">
+    <h3 style="color: #744210; margin-bottom: 10px;">💡 Dica</h3>
+    <p style="color: #744210; line-height: 1.6;">
+        O sistema detecta automaticamente os tipos de documentos presentes nos PDFs. 
+        Use estas configurações apenas para indicar quais tipos você espera ter para esta conta, 
+        facilitando a visualização e organização.
+    </p>
+</div>
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Documentos - Conta {{ conta['numero_conta'] }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 30px;">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">← Voltar para Contas</a>
+</div>
+
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 12px; margin-bottom: 30px; color: white;">
+    <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 20px;">
+        <div>
+            <h2 style="margin-bottom: 15px; font-size: 28px;">{{ conta['fundo'] }}</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 15px;">
+                <div>
+                    <small style="opacity: 0.8; display: block;">Banco</small>
+                    <strong style="font-size: 18px;">{{ conta['banco'] }}</strong>
+                </div>
+                <div>
+                    <small style="opacity: 0.8; display: block;">Agência</small>
+                    <strong style="font-size: 18px;">{{ conta['agencia'] }}</strong>
+                </div>
+                <div>
+                    <small style="opacity: 0.8; display: block;">Conta</small>
+                    <strong style="font-size: 18px;">{{ conta['numero_conta'] }}</strong>
+                </div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            {% if conta['tem_poupanca'] == 1 %}
+            <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-weight: 600;">
+                💰 Poupança
+            </span>
+            {% endif %}
+            {% if conta['tem_aplicacao'] == 1 %}
+            <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-weight: 600;">
+                📈 Aplicação
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<h2 class="section-title">📄 Documentos Anexados</h2>
+
+{% if documentos %}
+<div class="table-responsive">
+    <table>
+        <thead>
+            <tr>
+                <th>Tipo</th>
+                <th>Período</th>
+                <th>Mês/Ano Ref.</th>
+                <th>Valor</th>
+                <th>Data Upload</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for doc in documentos %}
+            <tr>
+                <td>
+                    {% if doc['tipo_documento'] == 'Conciliação Bancária' %}
+                    <span class="badge badge-blue">📊 {{ doc['tipo_documento'] }}</span>
+                    {% elif doc['tipo_documento'] == 'Conta Corrente' %}
+                    <span class="badge badge-green">💰 {{ doc['tipo_documento'] }}</span>
+                    {% elif doc['tipo_documento'] == 'Conta Poupança' %}
+                    <span class="badge badge-purple">🐷 {{ doc['tipo_documento'] }}</span>
+                    {% elif doc['tipo_documento'] == 'Conta de Aplicação' %}
+                    <span class="badge badge-orange">📈 {{ doc['tipo_documento'] }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <small style="color: #718096;">De:</small> {{ doc['data_inicio'] }}<br>
+                    <small style="color: #718096;">Até:</small> {{ doc['data_fim'] }}
+                </td>
+                <td>
+                    <strong style="color: #2d3748; font-size: 16px;">{{ doc['mes_referencia'] }}/{{ doc['ano_referencia'] }}</strong>
+                </td>
+                <td class="valor-cell">
+                    R$ {{ "%.2f"|format(doc['valor_total']) }}
+                </td>
+                <td>
+                    <small style="color: #718096;">{{ doc['data_upload'] }}</small>
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <a href="{{ url_for('uploaded_file', filename=doc['arquivo_pdf']) }}" target="_blank" class="btn-action btn-view">
+                            Ver PDF
+                        </a>
+                        <a href="{{ url_for('deletar_documento', id_documento=doc['id_documento']) }}" 
+                           class="btn-action btn-delete"
+                           onclick="return confirm('Tem certeza que deseja deletar este documento?')">
+                            Deletar
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div style="margin-top: 30px; background: #f7fafc; padding: 25px; border-radius: 10px; border-left: 4px solid #667eea;">
+    <h3 style="color: #2d3748; margin-bottom: 15px;">📊 Resumo</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        <div>
+            <small style="color: #718096; display: block;">Total de Documentos</small>
+            <strong style="color: #2d3748; font-size: 24px;">{{ documentos|length }}</strong>
+        </div>
+        {% set tipos = {} %}
+        {% for doc in documentos %}
+            {% set _ = tipos.update({doc['tipo_documento']: tipos.get(doc['tipo_documento'], 0) + 1}) %}
+        {% endfor %}
+        {% for tipo, qtd in tipos.items() %}
+        <div>
+            <small style="color: #718096; display: block;">{{ tipo }}</small>
+            <strong style="color: #667eea; font-size: 24px;">{{ qtd }}</strong>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% else %}
+<div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+    <h3>Nenhum documento anexado</h3>
+    <p>Faça upload de documentos na página principal para vincular a esta conta</p>
+    <a href="{{ url_for('index') }}" class="btn btn-primary" style="margin-top: 20px;">Ir para Upload</a>
+</div>
+{% endif %}
+{% endblock %}
