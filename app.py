@@ -488,16 +488,22 @@ def verificar_periodo_completo(data_inicio, data_fim, mes_ref, ano_ref):
         dia_inicio = int(data_inicio.split('/')[0])
         mes_inicio = int(data_inicio.split('/')[1])
         ano_inicio = int(data_inicio.split('/')[2])
-        
+
         dia_fim = int(data_fim.split('/')[0])
         mes_fim = int(data_fim.split('/')[1])
         ano_fim = int(data_fim.split('/')[2])
-        
+
         mes_ref_int = int(mes_ref)
-        
+        ano_ref_int = int(ano_ref)
+
+        # Garantir que o período está no mesmo ano de referência
+        if ano_inicio != ano_ref_int or ano_fim != ano_ref_int:
+            print(f"[AVISO] Período NÃO está no ano {ano_ref_int}")
+            return False
+
         # Verificar se é o mesmo mês
         if mes_inicio != mes_ref_int or mes_fim != mes_ref_int:
-            print(f"[AVISO] Período NÃO está no mês {mes_ref_int}/{ano_ref}")
+            print(f"[AVISO] Período NÃO está no mês {mes_ref_int}/{ano_ref_int}")
             return False
         
         # Verificar se começa no dia 1
